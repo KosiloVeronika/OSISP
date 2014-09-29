@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "MiniPaint.h"
 #include <commdlg.h>
+#include "Resource.h"
 
 #define MAX_LOADSTRING 100
 // Идентификатор ресурса шаблона меню
@@ -34,12 +35,14 @@ HBITMAP hBit;
 RECT rect;
 HPEN myPen;
 HBRUSH myBrush;
+LOGBRUSH logbrush;
 
 int operation = ID_PENCIL;
 int x0, y0, x1, y1, x2, y2, xZ, yZ;
 double m;
 int penWidth = 1;
 DWORD rgb;
+DWORD fillRGB = 0xffffff;
 
 bool flag = false;
 bool zoomOrPan = false;
@@ -210,6 +213,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	switch (message)
 	{
+	case WM_CREATE:
+		logbrush.lbStyle = BS_HOLLOW;
+		break;
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam);
 		wmEvent = HIWORD(wParam);
@@ -254,7 +260,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					DestroyWindow(hText);
 				}
 				hDrawWnd = CreateWindow(L"ChildWnd", NULL, WS_CHILD | WS_BORDER,
-					1, 1, 1000, 500, hWnd, NULL, hInst, NULL);
+					1, 1, 800, 400, hWnd, NULL, hInst, NULL);
 
 				hDC = GetDC(hDrawWnd);
 				hMemDC = CreateCompatibleDC(hDC);
@@ -437,13 +443,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 
 			hDrawWnd = CreateWindow(L"ChildWnd", NULL, WS_CHILD | WS_BORDER,
-				1, 1, 1000, 500, hWnd, NULL, hInst, NULL);
+				1, 1, 800, 400, hWnd, NULL, hInst, NULL);
 
 			hDC = GetDC(hDrawWnd);
 			hMemDC = CreateCompatibleDC(hDC);
 			GetClientRect(hDrawWnd, &rect);
 			hBit = CreateCompatibleBitmap(hDC, rect.right, rect.bottom);
-			myBrush = CreateSolidBrush(RGB(255, 255, 255));
+			myBrush = CreateSolidBrush(RGB(255,255,255));
 			SelectObject(hMemDC, hBit);
 			FillRect(hMemDC, &rect, myBrush);
 			DeleteObject(myBrush);
@@ -534,6 +540,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if (ChooseColor(&cc) == TRUE)
 			{
 				rgb = cc.rgbResult;
+			}
+			break;
+		case ID_FILL_COLOR:
+			if (hText != NULL)
+			{
+				SetFocus(NULL);
+				DestroyWindow(hText);
+			}
+			CHOOSECOLOR ccf;
+			COLORREF arrCustColorFill[16];
+			ZeroMemory(&ccf, sizeof(CHOOSECOLOR));
+			ccf.lStructSize = sizeof(CHOOSECOLOR);
+			ccf.hwndOwner = hWnd;
+			ccf.lpCustColors = arrCustColorFill;
+			ccf.Flags = CC_FULLOPEN | CC_RGBINIT;
+			if (ChooseColor(&ccf) == TRUE)
+			{
+				fillRGB = ccf.rgbResult;
+				logbrush.lbStyle = BS_SOLID;
 			}
 			break;
 		case ID_ONE:
@@ -714,28 +739,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				x2 = LOWORD(lParam);
 				y2 = HIWORD(lParam);
 				myPen = CreatePen(PS_SOLID, penWidth, rgb);
+				logbrush.lbColor = fillRGB;
+				myBrush = CreateBrushIndirect(&logbrush);
 				hDC = GetDC(hDrawWnd);
 				GetClientRect(hDrawWnd, &rect);
 				BitBlt(hDC, 0, 0, rect.right, rect.bottom, hMemDC, 0, 0, SRCCOPY);
-				SelectObject(hDC, GetStockObject(NULL_BRUSH));
+				SelectObject(hDC, myBrush);
 				SelectObject(hDC, myPen);
 				Rectangle(hDC, x1, y1, x2, y2);
 				ReleaseDC(hDrawWnd, hDC);
 				DeleteObject(myPen);
+				DeleteObject(myBrush);
 				break;
 
 			case ID_ELLIPSE:
 				x2 = LOWORD(lParam);
 				y2 = HIWORD(lParam);
 				myPen = CreatePen(PS_SOLID, penWidth, rgb);
+				myBrush = CreateSolidBrush(fillRGB);
 				hDC = GetDC(hDrawWnd);
 				GetClientRect(hDrawWnd, &rect);
 				BitBlt(hDC, 0, 0, rect.right, rect.bottom, hMemDC, 0, 0, SRCCOPY);
-				SelectObject(hDC, GetStockObject(NULL_BRUSH));
+				SelectObject(hDC, myBrush);
 				SelectObject(hDC, myPen);
 				Ellipse(hDC, x1, y1, x2, y2);
 				ReleaseDC(hDrawWnd, hDC);
 				DeleteObject(myPen);
+				DeleteObject(myBrush);
 				break;
 			}
 		}
@@ -1064,28 +1094,36 @@ LRESULT CALLBACK ChildProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam
 				x2 = LOWORD(lParam);
 				y2 = HIWORD(lParam);
 				myPen = CreatePen(PS_SOLID, penWidth, rgb);
+				logbrush.lbColor = fillRGB;
+				//logbrush.lbStyle = BS_HOLLOW;
+				myBrush = CreateBrushIndirect(&logbrush);
 				hDC = GetDC(hDrawWnd);
 				GetClientRect(hDrawWnd, &rect);
 				BitBlt(hDC, 0, 0, rect.right, rect.bottom, hMemDC, 0, 0, SRCCOPY);
-				SelectObject(hDC, GetStockObject(NULL_BRUSH));
+				SelectObject(hDC, myBrush);
 				SelectObject(hDC, myPen);
 				Rectangle(hDC, x1, y1, x2, y2);
 				ReleaseDC(hDrawWnd, hDC);
 				DeleteObject(myPen);
+				DeleteObject(myBrush);
 				break;
 
 			case ID_ELLIPSE:
 				x2 = LOWORD(lParam);
 				y2 = HIWORD(lParam);
 				myPen = CreatePen(PS_SOLID, penWidth, rgb);
+				logbrush.lbColor = fillRGB;
+				//logbrush.lbStyle = BS_HOLLOW;
+				myBrush = CreateBrushIndirect(&logbrush);
 				hDC = GetDC(hDrawWnd);
 				GetClientRect(hDrawWnd, &rect);
 				BitBlt(hDC, 0, 0, rect.right, rect.bottom, hMemDC, 0, 0, SRCCOPY);
-				SelectObject(hDC, GetStockObject(NULL_BRUSH));
+				SelectObject(hDC, myBrush);
 				SelectObject(hDC, myPen);
 				Ellipse(hDC, x1, y1, x2, y2);
 				ReleaseDC(hDrawWnd, hDC);
 				DeleteObject(myPen);
+				DeleteObject(myBrush);
 				break;	
 			}
 		}
