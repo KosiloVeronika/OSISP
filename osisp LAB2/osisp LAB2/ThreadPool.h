@@ -6,11 +6,12 @@ namespace ThreadPool
 	class MyThreadPool
 	{
 	public:
-		MyThreadPool(int n, void(&function)());
+		MyThreadPool(int n, void(&function)(char str[255], DWORD threadID));
+		~MyThreadPool();
 		
 		std::vector<WorkThread::MyWorkThread*> threadList;
-		void SetTask(void(&function)(int time));
+		int SetTask(void(&function)(int time));
 		int GetFreeThread();
-		void(*LogFunction)();
+		void(*LogFunction)(char str[255], DWORD threadID);
 	};
 }
